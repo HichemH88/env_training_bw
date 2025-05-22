@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  db-demo:
+    image: postgres:15
+    container_name: postgres-db
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypass
+      POSTGRES_DB: mydb
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+
+  postgrest-demo:
+    image: postgrest/postgrest
+    container_name: postgrest-api-demo
+    depends_on:
+      - db-demo
+    environment:
+      PGRST_DB_URI: postgres://admin:admin@db-demo:5432/mydb
+      PGRST_DB_ANON_ROLE: web_anon
+      PGRST_DB_SCHEMA: dev
+      PGRST_SERVER_PORT: 3000
+    ports:
+      - "3000:3000"
+    volumes:
+         - ./postgrest.conf:/etc/postgrest.conf
+    command: ["postgrest", "/etc/postgrest.conf"]
+  python-app-demo:
+    build: ./app
+    container_name: python-app-demo
+    depends_on:
+      - db-demo
+    volumes:
+      - ./app:/app
+    working_dir: /app
+    entrypoint: ["./entrypoint.sh"]
+    
