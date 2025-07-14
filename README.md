@@ -15,3 +15,4 @@ Postgres-db
 Postgrest
 Python service
 check the services: docker stats or docker ps -a
+execute init sql: create user admin, then new schema dev and grant privielges to admin in order to configure PGREST api
