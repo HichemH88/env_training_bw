@@ -1,56 +1,67 @@
-version: "3.9"
+version: '3.8'
 
 services:
-  db-demo:
+  airflow-postgres:
     image: postgres:15
-    container_name: postgres-db
+    restart: always
     environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypass
-      POSTGRES_DB: mydb
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
     volumes:
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - airflow_pgdata:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5433:5432"
+    networks:
+      - data-network
 
-  postgrest-demo:
-    image: postgrest/postgrest
-    container_name: postgrest-api-demo
+  airflow-webserver:
+    image: apache/airflow:2.9.1-python3.10
     depends_on:
-      - db-demo
+      - airflow-postgres
+      - airflow-scheduler
     environment:
-      PGRST_DB_URI: postgres://admin:admin@db-demo:5432/mydb
-      PGRST_DB_ANON_ROLE: web_anon
-      PGRST_DB_SCHEMA: dev
-      PGRST_SERVER_PORT: 3000
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres:5432/airflow
+      AIRFLOW__WEBSERVER__RBAC: "True"
+      AIRFLOW__WEBSERVER__DEFAULT_UI_TIMEZONE: UTC
+      AIRFLOW__CORE__FERNET_KEY: ''
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "False"
+      AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth"
+      AIRFLOW__WEBSERVER__SECRET_KEY: admin
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/data:/opt/airflow/data
     ports:
-      - "3000:3000"
-    volumes:
-         - ./postgrest.conf:/etc/postgrest.conf
-    command: ["postgrest", "/etc/postgrest.conf"]
-  python-app-demo:
-    build: ./app
-    container_name: python-app-demo
+      - "8089:8080"  # Airflow UI at http://localhost:8089
+    command: airflow webserver
+    networks:
+      - data-network
+
+  airflow-scheduler:
+    image: apache/airflow:2.9.1-python3.10
     depends_on:
-      - db-demo
-    volumes:
-      - ./app:/app
-    working_dir: /app
-    entrypoint: ["./entrypoint.sh"]
-    
-  grafana:
-    image: grafana/grafana-oss:latest
-    ports:
-      - "3001:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-    depends_on:
-      - db-demo
+      - airflow-postgres
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    restart: unless-stopped
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres:5432/airflow
+      AIRFLOW__CORE__FERNET_KEY: ''
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "False"
+      AIRFLOW__WEBSERVER__SECRET_KEY: admin
+    volumes:
+      -  /var/run/docker.sock:/var/run/docker.sock  # important
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/data:/opt/airflow/data
+  
+    command: airflow scheduler
+    networks:
+      - data-network
 
 volumes:
-  postgres_data:
-  grafana_data:
+  airflow_pgdata:
+
+networks:
+  data-network:
+    driver: bridge
