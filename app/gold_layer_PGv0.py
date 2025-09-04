@@ -4,20 +4,20 @@ from docker.types import Mount
 from datetime import datetime
 
 with DAG(
-    dag_id="data_gold_quality_pg",
-    start_date=datetime(2025, 9, 2),
+    dag_id="gold_layer_PG_v0",
+    start_date=datetime(2025, 9, 3),
     schedule_interval=None,  # manual run; or use a cron schedule
     catchup=False,
     tags=["minio", "duckdb"],
 ) as dag:
 
     run_duckdb_transform = DockerOperator(
-        task_id="gold_layer_quality_PG",
+        task_id="gold_layer_loadpg",
         image="env_training-python-app-demo:python_test",  # replace with your Python container image
         api_version="auto",
         auto_remove=True,
         entrypoint="",
-        command=['python', '/app/app/data_quality_gold.py'],
+        command=['python', '/app/app/gold_layer_PG.py'],
         docker_url="unix://var/run/docker.sock",  # Docker socket must be mounted
         network_mode="data-network",  # or your shared network if MinIO is in another container
         mount_tmp_dir=False,
