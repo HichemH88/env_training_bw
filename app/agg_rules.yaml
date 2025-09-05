@@ -1,0 +1,83 @@
+load_to_postgres: true
+
+tables:
+  rated_call_gold:
+    output_cols:       # 👈 keep only these
+      - subscriber_id
+      - call_type_id
+      - msisdn_number
+      - call_start_date
+
+    rename_map:
+      call_duration: call_duration
+      volume_amount: volume_amount
+      call_charge_amount: call_charge_amount
+      charged_data_volume: charged_data_volume
+      free_duration: free_duration
+   
+    condition: "call_start_date BETWEEN DATE '2016-12-03' AND DATE '2016-12-15'"
+    aggregations:
+      total_call_charge_amount: "SUM(call_charge_amount)"
+      total_call_duration: "SUM(call_duration)"
+      charged_data_volume: "SUM(charged_data_volume)"
+      free_duration: "SUM(free_duration)"
+      data_volume_amount: "SUM(volume_amount)"
+    group_by:
+      - subscriber_id
+      - call_type_id
+      - msisdn_number
+      - call_start_date
+    new_object: agg_subscriber_usage_weekly
+    object_type: view
+    load_to_postgres: true 
+
+  raw_call_IC:
+    source_table: raw_call_gold
+ 
+    output_cols:       # 👈 keep only these
+      - subscriber_id
+      - call_type_id
+      - msisdn_number
+      - call_start_date
+      - rate_plan_id
+   
+    condition: " call_start_date::DATE BETWEEN DATE '2016-12-03' AND DATE '2016-12-15' AND call_direction='I'"
+    aggregations:
+      total_events: "count( raw_call_id)"
+      total_call_duration: "SUM(call_duration)"
+      data_volume: "SUM(total_data_volume)"
+    group_by:
+      - subscriber_id
+      - call_type_id
+      - msisdn_number
+      - call_start_date
+      - rate_plan_id
+      
+    new_object: agg_raw_call_IC
+    object_type: view
+    load_to_postgres: true 
+
+  raw_call_OC:
+    source_table: raw_call_gold
+    output_cols:       # 👈 keep only these
+      - subscriber_id
+      - call_type_id
+      - msisdn_number
+      - call_start_date
+      - rate_plan_id
+   
+    condition: " call_start_date::DATE BETWEEN DATE '2016-12-03' AND DATE '2016-12-15' AND call_direction='O'"
+    aggregations:
+      total_events: "count( raw_call_id)"
+      total_call_duration: "SUM(call_duration)"
+      data_volume: "SUM(total_data_volume)"
+    group_by:
+      - subscriber_id
+      - call_type_id
+      - msisdn_number
+      - call_start_date
+      - rate_plan_id
+      
+    new_object: agg_raw_call_OC
+    object_type: view
+    load_to_postgres: true 
